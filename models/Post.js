@@ -4,6 +4,8 @@ const ObjectID = require('mongodb').ObjectID
 const User = require('./User')
 const sanitizeHTML = require('sanitize-html')
 
+postsCollection.createIndex({title: "text", body: "text"})
+
 let Post = function(data, userid, requestedPostId) {
     this.data = data
     this.errors = []
@@ -29,23 +31,23 @@ Post.prototype.validate = function() {
     if (this.data.body == "") {this.errors.push("You must provide post content.")}
 }
 
-Post.prototype.create = function() {
-    return new Promise((resovle, reject) => {
-        this.cleanUp()
-        this.validate()
-        if (!this.errors.length) {
-            // save post into database
-            postsCollection.insertOne(this.data).then((info) => {
-                resovle(info.ops[0]._id)
-            }).catch(() => {
-                this.errors.push("Please try again later.")
-                reject(this.errors)
-            })
-        } else {
-            reject(this.errors)
+Post.prototype.create = async function() {
+    this.cleanUp()
+    this.validate()
+    if (!this.errors.length) {
+        // save post into database
+        try {
+            const info = await postsCollection.insertOne(this.data)
+            return info.ops[0]._id
+        } catch(err) {
+            this.errors.push("Please try again later.")
+            throw this.errors
         }
-    })
+    } else {
+        throw this.errors
+    }
 }
+
 
 Post.prototype.update = function() {
     return new Promise(async (resovle, reject) => {
